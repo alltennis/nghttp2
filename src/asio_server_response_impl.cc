@@ -62,6 +62,36 @@ void response_impl::write_head(unsigned int status_code, header_map h) {
   start_response();
 }
 
+void response_impl::set_status_code(unsigned int status_code, header_map h) {
+  write_head(status_code, std::move(h));
+}
+
+void response_impl::set_status_code(unsigned int status_code) {
+  if (state_ != response_state::INITIAL) {
+    return;
+  }
+
+  status_code_ = status_code;
+  state_ = response_state::HEADER_DONE;
+
+  if (pushed_ && !push_promise_sent_) {
+    return;
+  }
+
+  start_response();
+}
+
+void response_impl::set_head(std::string key, std::string value) {
+  auto search = header_.find(key);
+  if(search != header_.end()) {
+    search->second = header_value{value};
+  }
+  else {
+    header_.emplace(key, header_value{value});
+  }
+}
+
+
 void response_impl::end(std::string data) {
   end(string_generator(std::move(data)));
 }

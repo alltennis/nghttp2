@@ -75,6 +75,9 @@ public:
   // Write response header using |status_code| (e.g., 200) and
   // additional header fields in |h|.
   void write_head(unsigned int status_code, header_map h = header_map{}) const;
+  void set_status_code(unsigned int status_code, header_map h) const;
+  void set_status_code(unsigned int status_code) const;
+  void set_head(std::string key, std::string value) const;
 
   // Sends |data| as request body.  No further call of end() is
   // allowed.

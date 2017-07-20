@@ -41,6 +41,15 @@ response::~response() {}
 void response::write_head(unsigned int status_code, header_map h) const {
   impl_->write_head(status_code, std::move(h));
 }
+void response::set_status_code(unsigned int status_code, header_map h) const {
+  impl_->set_status_code(status_code, std::move(h));
+}
+void response::set_status_code(unsigned int status_code) const {
+  impl_->set_status_code(status_code);
+}
+void response::set_head(std::string key, std::string value) const {
+  impl_->set_head(std::move(key), std::move(value));
+}
 
 void response::end(std::string data) const { impl_->end(std::move(data)); }
 

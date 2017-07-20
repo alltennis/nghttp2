@@ -19,7 +19,7 @@
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
  * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
  * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
- * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * OF CONTRACT, TORT OR OTHERWISE, ARISING FUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #ifndef ASIO_SERVER_RESPONSE_IMPL_H
@@ -47,6 +47,10 @@ class response_impl {
 public:
   response_impl();
   void write_head(unsigned int status_code, header_map h = header_map{});
+  void set_status_code(unsigned int status_code, header_map h);
+  void set_status_code(unsigned int status_code);
+  void set_head(std::string key, std::string value);
+
   void end(std::string data = "");
   void end(generator_cb cb);
   void write_trailer(header_map h);
