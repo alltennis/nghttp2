@@ -205,24 +205,105 @@ required.
    responsible to specify the correct values to these variables.  For
    complete list of these variables, run ``./configure -h``.
 
-Building nghttp2 from release tar archive
------------------------------------------
 
-The nghttp2 project regularly releases tar archives which includes
-nghttp2 source code, and generated build files.  They can be
-downloaded from `Releases
-<https://github.com/nghttp2/nghttp2/releases>`_ page.
+libnghttp2_asio: High level HTTP/2 C++ library
+----------------------------------------------
 
-Building nghttp2 from git requires autotools development packages.
-Building from tar archives does not require them, and thus it is much
-easier.  The usual build step is as follows:
+libnghttp2_asio is C++ library built on top of libnghttp2 and provides
+high level abstraction API to build HTTP/2 applications.  It depends
+on the Boost::ASIO library and OpenSSL.  Currently libnghttp2_asio
+provides both client and server APIs.
 
-.. code-block:: text
+libnghttp2_asio is not built by default.  Use the ``--enable-asio-lib``
+configure flag to build libnghttp2_asio.  The required Boost libraries
+are:
 
-    $ tar xf nghttp2-X.Y.Z.tar.bz2
-    $ cd nghttp2-X.Y.Z
-    $ ./configure
-    $ make
+* Boost::Asio
+* Boost::System
+* Boost::Thread
+
+The server API is designed to build an HTTP/2 server very easily to utilize
+C++11 anonymous functions and closures.  The bare minimum example of
+an HTTP/2 server looks like this:
+
+.. code-block:: cpp
+
+    #include <iostream>
+
+    #include <nghttp2/asio_http2_server.h>
+
+    using namespace nghttp2::asio_http2;
+    using namespace nghttp2::asio_http2::server;
+
+    int main(int argc, char *argv[]) {
+      boost::system::error_code ec;
+      http2 server;
+
+      server.handle("/", [](const request &req, const response &res) {
+        res.write_head(200);
+        res.end("hello, world\n");
+      });
+
+      if (server.listen_and_serve(ec, "localhost", "3000")) {
+        std::cerr << "error: " << ec.message() << std::endl;
+      }
+    }
+
+Here is sample code to use the client API:
+
+.. code-block:: cpp
+
+    #include <iostream>
+
+    #include <nghttp2/asio_http2_client.h>
+
+    using boost::asio::ip::tcp;
+
+    using namespace nghttp2::asio_http2;
+    using namespace nghttp2::asio_http2::client;
+
+    int main(int argc, char *argv[]) {
+      boost::system::error_code ec;
+      boost::asio::io_service io_service;
+
+      // connect to localhost:3000
+      session sess(io_service, "localhost", "3000");
+
+      sess.on_connect([&sess](tcp::resolver::iterator endpoint_it) {
+        boost::system::error_code ec;
+
+        auto req = sess.submit(ec, "GET", "http://localhost:3000/");
+
+        req->on_response([](const response &res) {
+          // print status code and response header fields.
+          std::cerr << "HTTP/2 " << res.status_code() << std::endl;
+          for (auto &kv : res.header()) {
+            std::cerr << kv.first << ": " << kv.second.value << "\n";
+          }
+          std::cerr << std::endl;
+
+          res.on_data([](const uint8_t *data, std::size_t len) {
+            std::cerr.write(reinterpret_cast<const char *>(data), len);
+            std::cerr << std::endl;
+          });
+        });
+
+        req->on_close([&sess](uint32_t error_code) {
+          // shutdown session after first request was done.
+          sess.shutdown();
+        });
+      });
+
+      sess.on_error([](const boost::system::error_code &ec) {
+        std::cerr << "error: " << ec.message() << std::endl;
+      });
+
+      io_service.run();
+    }
+
+For more details, see the documentation of libnghttp2_asio.
+
+
 
 Building from git
 -----------------
@@ -239,51 +320,6 @@ used:
     $ ./configure
     $ make
 
-Notes for building on Windows (MSVC)
-------------------------------------
-
-The easiest way to build native Windows nghttp2 dll is use `cmake
-<https://cmake.org/>`_.  The free version of `Visual C++ Build Tools
-<http://landinghub.visualstudio.com/visual-cpp-build-tools>`_ works
-fine.
-
-1. Install cmake for windows
-2. Open "Visual C++ ... Native Build Tool Command Prompt", and inside
-   nghttp2 directly, run ``cmake``.
-3. Then run ``cmake --build`` to build library.
-4. nghttp2.dll, nghttp2.lib, nghttp2.exp are placed under lib directory.
-
-Note that the above steps most likely produce nghttp2 library only.
-No bundled applications are compiled.
-
-Notes for building on Windows (Mingw/Cygwin)
---------------------------------------------
-
-Under Mingw environment, you can only compile the library, it's
-``libnghttp2-X.dll`` and ``libnghttp2.a``.
-
-If you want to compile the applications(``h2load``, ``nghttp``,
-``nghttpx``, ``nghttpd``), you need to use the Cygwin environment.
-
-Under Cygwin environment, to compile the applications you need to
-compile and install the libev first.
-
-Secondly, you need to undefine the macro ``__STRICT_ANSI__``, if you
-not, the functions ``fdopen``, ``fileno`` and ``strptime`` will not
-available.
-
-the sample command like this:
-
-.. code-block:: text
-
-    $ export CFLAGS="-U__STRICT_ANSI__ -I$libev_PREFIX/include -L$libev_PREFIX/lib"
-    $ export CXXFLAGS=$CFLAGS
-    $ ./configure
-    $ make
-
-If you want to compile the applications under ``examples/``, you need
-to remove or rename the ``event.h`` from libev's installation, because
-it conflicts with libevent's installation.
 
 Notes for installation on Linux systems
 --------------------------------------------
@@ -1335,102 +1371,6 @@ associated value includes the state of the dynamic header table after the
 corresponding header set was processed.  The format is the same as
 ``deflatehd``.
 
-libnghttp2_asio: High level HTTP/2 C++ library
-----------------------------------------------
-
-libnghttp2_asio is C++ library built on top of libnghttp2 and provides
-high level abstraction API to build HTTP/2 applications.  It depends
-on the Boost::ASIO library and OpenSSL.  Currently libnghttp2_asio
-provides both client and server APIs.
-
-libnghttp2_asio is not built by default.  Use the ``--enable-asio-lib``
-configure flag to build libnghttp2_asio.  The required Boost libraries
-are:
-
-* Boost::Asio
-* Boost::System
-* Boost::Thread
-
-The server API is designed to build an HTTP/2 server very easily to utilize
-C++11 anonymous functions and closures.  The bare minimum example of
-an HTTP/2 server looks like this:
-
-.. code-block:: cpp
-
-    #include <iostream>
-
-    #include <nghttp2/asio_http2_server.h>
-
-    using namespace nghttp2::asio_http2;
-    using namespace nghttp2::asio_http2::server;
-
-    int main(int argc, char *argv[]) {
-      boost::system::error_code ec;
-      http2 server;
-
-      server.handle("/", [](const request &req, const response &res) {
-        res.write_head(200);
-        res.end("hello, world\n");
-      });
-
-      if (server.listen_and_serve(ec, "localhost", "3000")) {
-        std::cerr << "error: " << ec.message() << std::endl;
-      }
-    }
-
-Here is sample code to use the client API:
-
-.. code-block:: cpp
-
-    #include <iostream>
-
-    #include <nghttp2/asio_http2_client.h>
-
-    using boost::asio::ip::tcp;
-
-    using namespace nghttp2::asio_http2;
-    using namespace nghttp2::asio_http2::client;
-
-    int main(int argc, char *argv[]) {
-      boost::system::error_code ec;
-      boost::asio::io_service io_service;
-
-      // connect to localhost:3000
-      session sess(io_service, "localhost", "3000");
-
-      sess.on_connect([&sess](tcp::resolver::iterator endpoint_it) {
-        boost::system::error_code ec;
-
-        auto req = sess.submit(ec, "GET", "http://localhost:3000/");
-
-        req->on_response([](const response &res) {
-          // print status code and response header fields.
-          std::cerr << "HTTP/2 " << res.status_code() << std::endl;
-          for (auto &kv : res.header()) {
-            std::cerr << kv.first << ": " << kv.second.value << "\n";
-          }
-          std::cerr << std::endl;
-
-          res.on_data([](const uint8_t *data, std::size_t len) {
-            std::cerr.write(reinterpret_cast<const char *>(data), len);
-            std::cerr << std::endl;
-          });
-        });
-
-        req->on_close([&sess](uint32_t error_code) {
-          // shutdown session after first request was done.
-          sess.shutdown();
-        });
-      });
-
-      sess.on_error([](const boost::system::error_code &ec) {
-        std::cerr << "error: " << ec.message() << std::endl;
-      });
-
-      io_service.run();
-    }
-
-For more details, see the documentation of libnghttp2_asio.
 
 Python bindings
 ---------------
