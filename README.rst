@@ -222,6 +222,20 @@ are:
 * Boost::System
 * Boost::Thread
 
+
+.. code-block:: cpp
+
+    git地址：
+        https://github.com/alltennis/nghttp2.git
+
+    编译环境准备：
+        apt install libboost-dev libboost-thread-dev g++ make binutils autoconf automake autotools-dev libtool pkg-config zlib1g-dev libcunit1-dev libssl-dev libxml2-dev libev-dev libevent-dev libjansson-dev libc-ares-dev libjemalloc-dev libsystemd-dev libspdylay-dev cython python3-dev python-setuptools
+
+    编译参数：
+        ./configure --enable-asio-lib --with-boost-asio --with-boost-system --with-boost-thread --with-boost
+
+
+
 The server API is designed to build an HTTP/2 server very easily to utilize
 C++11 anonymous functions and closures.  The bare minimum example of
 an HTTP/2 server looks like this:
